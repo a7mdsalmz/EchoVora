@@ -1,0 +1,4 @@
+phone,name,email,externalId,amount,currency,notes
++201000000001,Ahmed,ahmed@example.com,ext-1,120,EGP,first
++201000000002,Sara,sara@example.com,ext-2,75,EGP,second
+

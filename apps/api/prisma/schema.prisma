@@ -1,0 +1,1014 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+enum AppLocale {
+  en
+  ar
+}
+
+enum RoleKey {
+  SUPER_ADMIN
+  BUSINESS_OWNER
+  MANAGER
+  VIEWER
+}
+
+enum MemberStatus {
+  ACTIVE
+  INVITED
+  DISABLED
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+enum AgentType {
+  ORDER_CONFIRMATION
+  VOICE_CALL_CENTER
+  CUSTOMER_SUPPORT
+  SMART_WORKFLOWS
+}
+
+enum AgentStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum TelephonyProvider {
+  TWILIO
+  TELNYX
+  PLIVO
+}
+
+enum CallDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum CallStatus {
+  NEW
+  RINGING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  CANCELED
+}
+
+enum TranscriptFormat {
+  TEXT
+  JSON
+}
+
+enum ConversationDirection {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum KnowledgeSourceType {
+  FILE
+  URL
+}
+
+enum KnowledgeSourceStatus {
+  PENDING
+  READY
+  FAILED
+}
+
+enum UsageType {
+  CALL_SECONDS
+  AI_TOKENS
+  TTS_CHARACTERS
+  STT_SECONDS
+  STORAGE_BYTES
+}
+
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  VOID
+  UNCOLLECTIBLE
+}
+
+enum ProviderType {
+  TELEPHONY_TWILIO
+  TELEPHONY_TELNYX
+  TELEPHONY_PLIVO
+  AI_OPENAI
+  VOICE_ELEVENLABS
+  STORAGE_R2
+  WHATSAPP
+}
+
+enum WebhookStatus {
+  RECEIVED
+  PROCESSING
+  PROCESSED
+  FAILED
+}
+
+enum OrderStatus {
+  PENDING
+  QUEUED
+  CALLING
+  CONFIRMED
+  REJECTED
+  RESCHEDULED
+  CHANGE_ADDRESS
+  NO_ANSWER
+  FAILED
+  HUMAN_REVIEW
+}
+
+enum OrderCampaignStatus {
+  DRAFT
+  RUNNING
+  COMPLETED
+  CANCELED
+}
+
+enum WhatsAppMessageStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum WorkflowStatus {
+  draft
+  published
+}
+
+enum RunStatus {
+  running
+  succeeded
+  failed
+}
+
+model User {
+  id           String          @id @default(cuid())
+  email        String          @unique
+  passwordHash String
+  name         String?
+  preferredLocale AppLocale    @default(en)
+  globalRole   RoleKey         @default(VIEWER)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  deletedAt    DateTime?
+
+  businessMembers BusinessMember[]
+  sessions        AuthSession[]
+
+  @@index([deletedAt])
+}
+
+model Business {
+  id            String           @id @default(cuid())
+  slug          String           @unique
+  name          String
+  defaultLocale AppLocale        @default(en)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  deletedAt     DateTime?
+
+  members        BusinessMember[]
+  sessions       AuthSession[]
+  subscription   Subscription?
+  agents         Agent[]
+  knowledgeBases KnowledgeBase[]
+  customers      Customer[]
+  orders         Order[]
+  orderCampaigns OrderCampaign[]
+  orderCampaignItems OrderCampaignItem[]
+  calls          Call[]
+  callTranscripts CallTranscript[]
+  callRecordings  CallRecording[]
+  callSummaries   CallSummary[]
+  conversationSessions ConversationSession[]
+  conversationTurns    ConversationTurn[]
+  intents        Intent[]
+  usageLogs      UsageLog[]
+  invoices       Invoice[]
+  providerConfigs ProviderConfig[]
+  cachedAudio     CachedAudio[]
+  webhookEvents   WebhookEvent[]
+  whatsappMessages WhatsAppMessage[]
+  phoneNumbers    PhoneNumber[]
+  agentKnowledgeBases AgentKnowledgeBase[]
+  knowledgeSources    KnowledgeSource[]
+  knowledgeChunks     KnowledgeChunk[]
+  answerCache         AnswerCache[]
+  unansweredQuestions UnansweredQuestion[]
+
+  modules        VoiceModule[]
+  workflows      Workflow[]
+  workflowRuns   WorkflowRun[]
+  telephonyEvents TelephonyEvent[]
+
+  @@index([deletedAt])
+}
+
+model Role {
+  id        String   @id @default(cuid())
+  key       RoleKey  @unique
+  level     Int
+  nameEn    String
+  nameAr    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members BusinessMember[]
+
+  @@index([level])
+}
+
+model BusinessMember {
+  id         String       @id @default(cuid())
+  businessId String
+  userId     String
+  roleId     String
+  status     MemberStatus @default(ACTIVE)
+  invitedAt  DateTime?
+  acceptedAt DateTime?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  deletedAt  DateTime?
+
+  business Business @relation(fields: [businessId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
+  role     Role     @relation(fields: [roleId], references: [id])
+
+  @@unique([businessId, userId])
+  @@index([userId])
+  @@index([businessId])
+  @@index([roleId])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model AuthSession {
+  id           String   @id @default(cuid())
+  userId       String
+  businessId   String
+  refreshToken String   @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id])
+  business Business @relation(fields: [businessId], references: [id])
+
+  @@index([userId])
+  @@index([businessId])
+  @@index([expiresAt])
+}
+
+model SubscriptionPlan {
+  id              String   @id @default(cuid())
+  key             String   @unique
+  nameEn          String
+  nameAr          String
+  priceMonthlyUsd Decimal  @default(0) @db.Decimal(65, 30)
+  currency        String   @default("USD")
+  monthlyMinutes  Int
+  agentsLimit     Int
+  ordersLimit     Int
+  teamMembersLimit Int
+  isPublic        Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  features        Json     @default("{}")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id                String             @id @default(cuid())
+  businessId        String             @unique
+  planId            String
+  status            SubscriptionStatus @default(TRIALING)
+  startedAt         DateTime           @default(now())
+  currentPeriodStart DateTime          @default(now())
+  currentPeriodEnd  DateTime
+  cancelAt          DateTime?
+  canceledAt        DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  business Business         @relation(fields: [businessId], references: [id])
+  plan     SubscriptionPlan @relation(fields: [planId], references: [id])
+  invoices Invoice[]
+
+  @@index([planId])
+  @@index([status])
+  @@index([currentPeriodEnd])
+}
+
+model Invoice {
+  id             String        @id @default(cuid())
+  businessId     String
+  subscriptionId String?
+  periodStart    DateTime
+  periodEnd      DateTime
+  amountUsd      Decimal       @default(0) @db.Decimal(65, 30)
+  currency       String        @default("USD")
+  status         InvoiceStatus @default(DRAFT)
+  issuedAt       DateTime      @default(now())
+  dueAt          DateTime?
+  paidAt         DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  business     Business       @relation(fields: [businessId], references: [id])
+  subscription Subscription?  @relation(fields: [subscriptionId], references: [id])
+
+  @@index([businessId])
+  @@index([status])
+  @@index([issuedAt])
+}
+
+model Agent {
+  id            String      @id @default(cuid())
+  businessId    String
+  type          AgentType
+  status        AgentStatus @default(ACTIVE)
+  nameEn        String
+  nameAr        String
+  descriptionEn String?
+  descriptionAr String?
+  defaultLocale AppLocale   @default(en)
+  config        Json        @default("{}")
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  deletedAt     DateTime?
+
+  business Business @relation(fields: [businessId], references: [id])
+  calls    Call[]
+  usageLogs UsageLog[]
+  conversationSessions ConversationSession[]
+  knowledgeBases AgentKnowledgeBase[]
+  answerCache AnswerCache[]
+  unansweredQuestions UnansweredQuestion[]
+
+  @@index([businessId])
+  @@index([status])
+  @@index([type])
+  @@index([deletedAt])
+}
+
+model KnowledgeBase {
+  id            String    @id @default(cuid())
+  businessId    String
+  nameEn        String
+  nameAr        String
+  descriptionEn String?
+  descriptionAr String?
+  content       Json      @default("[]")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  business Business @relation(fields: [businessId], references: [id])
+  sources  KnowledgeSource[]
+  agents   AgentKnowledgeBase[]
+
+  @@index([businessId])
+  @@index([deletedAt])
+}
+
+model AgentKnowledgeBase {
+  id            String @id @default(cuid())
+  businessId    String
+  agentId       String
+  knowledgeBaseId String
+  createdAt     DateTime @default(now())
+
+  business Business @relation(fields: [businessId], references: [id])
+  agent    Agent    @relation(fields: [agentId], references: [id])
+  knowledgeBase KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id])
+
+  @@unique([agentId, knowledgeBaseId])
+  @@index([businessId])
+  @@index([agentId])
+  @@index([knowledgeBaseId])
+}
+
+model KnowledgeSource {
+  id            String             @id @default(cuid())
+  businessId    String
+  knowledgeBaseId String
+  type          KnowledgeSourceType
+  status        KnowledgeSourceStatus @default(PENDING)
+  title         String?
+  sourceUrl     String?
+  filename      String?
+  mimeType      String?
+  r2Key         String?
+  extractedText String?
+  errorMessage  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+
+  business Business @relation(fields: [businessId], references: [id])
+  knowledgeBase KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id])
+  chunks   KnowledgeChunk[]
+
+  @@index([businessId])
+  @@index([knowledgeBaseId])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model KnowledgeChunk {
+  id           String   @id @default(cuid())
+  businessId   String
+  sourceId     String
+  chunkIndex   Int
+  locale       AppLocale @default(en)
+  contentText  String
+  createdAt    DateTime @default(now())
+
+  business Business @relation(fields: [businessId], references: [id])
+  source   KnowledgeSource @relation(fields: [sourceId], references: [id])
+
+  @@unique([sourceId, chunkIndex])
+  @@index([businessId])
+  @@index([sourceId])
+  @@index([locale])
+}
+
+model AnswerCache {
+  id         String    @id @default(cuid())
+  businessId String
+  agentId    String?
+  locale     AppLocale @default(en)
+  questionHash String
+  questionText String
+  answerText   String
+  hitCount     Int      @default(0)
+  lastUsedAt   DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id])
+  agent    Agent?   @relation(fields: [agentId], references: [id])
+
+  @@unique([businessId, locale, questionHash])
+  @@index([businessId])
+  @@index([agentId])
+  @@index([hitCount])
+}
+
+model UnansweredQuestion {
+  id         String    @id @default(cuid())
+  businessId String
+  agentId    String?
+  callId     String?
+  locale     AppLocale @default(en)
+  questionText String
+  createdAt  DateTime @default(now())
+  resolvedAt DateTime?
+  resolutionText String?
+
+  business Business @relation(fields: [businessId], references: [id])
+  agent    Agent?   @relation(fields: [agentId], references: [id])
+  call     Call?    @relation(fields: [callId], references: [id])
+
+  @@index([businessId])
+  @@index([businessId, resolvedAt, createdAt])
+  @@index([agentId])
+  @@index([callId])
+  @@index([createdAt])
+}
+
+model Customer {
+  id         String    @id @default(cuid())
+  businessId String
+  externalId String?
+  name       String?
+  phone      String
+  email      String?
+  locale     AppLocale @default(en)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  business Business @relation(fields: [businessId], references: [id])
+  orders   Order[]
+  calls    Call[]
+
+  @@unique([businessId, phone])
+  @@unique([businessId, externalId])
+  @@index([businessId])
+  @@index([phone])
+  @@index([deletedAt])
+}
+
+model Order {
+  id          String   @id @default(cuid())
+  businessId  String
+  customerId  String
+  externalId  String?
+  status      OrderStatus @default(PENDING)
+  amount      Decimal  @default(0) @db.Decimal(65, 30)
+  currency    String   @default("USD")
+  notes       String?
+  metadata    Json     @default("{}")
+  callAttempts Int     @default(0)
+  maxAttempts  Int     @default(3)
+  lastCallAt   DateTime?
+  nextCallAt   DateTime?
+  lastOutcome  OrderStatus?
+  confirmedAt  DateTime?
+  resolvedAt   DateTime?
+  requiresHumanReview Boolean @default(false)
+  reviewReason String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  business Business @relation(fields: [businessId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id])
+  calls    Call[]
+  campaignItems OrderCampaignItem[]
+  conversationSessions ConversationSession[]
+
+  @@unique([businessId, externalId])
+  @@index([businessId])
+  @@index([businessId, deletedAt, createdAt])
+  @@index([businessId, deletedAt, status, createdAt])
+  @@index([customerId])
+  @@index([status])
+  @@index([businessId, status, nextCallAt])
+  @@index([createdAt])
+  @@index([deletedAt])
+}
+
+model OrderCampaign {
+  id         String              @id @default(cuid())
+  businessId String
+  name       String
+  status     OrderCampaignStatus @default(DRAFT)
+  createdByUserId String?
+  scheduledAt DateTime?
+  startedAt  DateTime?
+  completedAt DateTime?
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+  deletedAt  DateTime?
+
+  business Business @relation(fields: [businessId], references: [id])
+  items    OrderCampaignItem[]
+
+  @@index([businessId])
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([deletedAt])
+}
+
+model OrderCampaignItem {
+  id          String      @id @default(cuid())
+  businessId  String
+  campaignId  String
+  orderId     String
+  status      OrderStatus @default(PENDING)
+  attempts    Int         @default(0)
+  lastAttemptAt DateTime?
+  nextAttemptAt DateTime?
+  lastCallId  String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id])
+  campaign OrderCampaign @relation(fields: [campaignId], references: [id])
+  order    Order         @relation(fields: [orderId], references: [id])
+  lastCall Call?         @relation("OrderCampaignItemLastCall", fields: [lastCallId], references: [id])
+
+  @@unique([campaignId, orderId])
+  @@index([businessId])
+  @@index([campaignId])
+  @@index([orderId])
+  @@index([status])
+  @@index([nextAttemptAt])
+}
+
+model Call {
+  id             String           @id @default(cuid())
+  businessId     String
+  customerId     String?
+  orderId        String?
+  agentId        String?
+  provider       TelephonyProvider
+  providerCallId String
+  direction      CallDirection
+  status         CallStatus       @default(NEW)
+  locale         AppLocale        @default(en)
+  fromNumber     String?
+  toNumber       String?
+  startedAt      DateTime?
+  endedAt        DateTime?
+  durationSeconds Int?
+  telephonyCostUsd Decimal        @default(0) @db.Decimal(65, 30)
+  aiCostUsd       Decimal         @default(0) @db.Decimal(65, 30)
+  ttsCostUsd      Decimal         @default(0) @db.Decimal(65, 30)
+  sttCostUsd      Decimal         @default(0) @db.Decimal(65, 30)
+  storageCostUsd  Decimal         @default(0) @db.Decimal(65, 30)
+  totalCostUsd    Decimal         @default(0) @db.Decimal(65, 30)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  deletedAt      DateTime?
+
+  business   Business  @relation(fields: [businessId], references: [id])
+  customer   Customer? @relation(fields: [customerId], references: [id])
+  order      Order?    @relation(fields: [orderId], references: [id])
+  agent      Agent?    @relation(fields: [agentId], references: [id])
+  transcript CallTranscript?
+  recordings CallRecording[]
+  summary    CallSummary?
+  usageLogs  UsageLog[]
+
+  workflowRuns WorkflowRun[]
+  telephonyEvents TelephonyEvent[]
+  orderCampaignItemsLastCall OrderCampaignItem[] @relation("OrderCampaignItemLastCall")
+  conversationSession ConversationSession?
+  conversationTurns   ConversationTurn[]
+  unansweredQuestions UnansweredQuestion[]
+
+  @@unique([businessId, provider, providerCallId])
+  @@index([businessId])
+  @@index([businessId, deletedAt, createdAt])
+  @@index([businessId, deletedAt, status, createdAt])
+  @@index([createdAt])
+  @@index([status])
+  @@index([customerId])
+  @@index([orderId])
+  @@index([agentId])
+  @@index([fromNumber])
+  @@index([toNumber])
+  @@index([deletedAt])
+}
+
+model CallTranscript {
+  id        String           @id @default(cuid())
+  businessId String
+  callId    String           @unique
+  locale    AppLocale        @default(en)
+  format    TranscriptFormat @default(TEXT)
+  contentText String?
+  contentJson Json?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id])
+  call     Call     @relation(fields: [callId], references: [id])
+
+  @@index([businessId])
+}
+
+model ConversationSession {
+  id         String    @id @default(cuid())
+  businessId String
+  callId     String    @unique
+  orderId    String?
+  agentId    String?
+  flowKey    String
+  locale     AppLocale @default(en)
+  dialect    String?
+  state      String
+  variables  Json      @default("{}")
+  outcome    OrderStatus?
+  startedAt  DateTime  @default(now())
+  endedAt    DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id])
+  call     Call     @relation(fields: [callId], references: [id])
+  order    Order?   @relation(fields: [orderId], references: [id])
+  agent    Agent?   @relation(fields: [agentId], references: [id])
+  turns    ConversationTurn[]
+
+  @@index([businessId])
+  @@index([orderId])
+  @@index([agentId])
+  @@index([flowKey])
+  @@index([state])
+}
+
+model ConversationTurn {
+  id            String                @id @default(cuid())
+  businessId    String
+  sessionId     String
+  callId        String
+  direction     ConversationDirection
+  state         String
+  text          String?
+  transcriptRaw Json?
+  intent        String?
+  aiUsed        Boolean               @default(false)
+  audioCacheKey String?
+  audioR2Key    String?
+  createdAt     DateTime              @default(now())
+
+  business Business            @relation(fields: [businessId], references: [id])
+  session  ConversationSession @relation(fields: [sessionId], references: [id])
+  call     Call                @relation(fields: [callId], references: [id])
+
+  @@index([businessId])
+  @@index([sessionId])
+  @@index([callId])
+  @@index([createdAt])
+  @@index([direction])
+}
+
+model CallRecording {
+  id        String   @id @default(cuid())
+  businessId String
+  callId    String
+  r2Key     String?
+  sourceUrl String?
+  mimeType  String?
+  bytes     BigInt   @default(0)
+  createdAt DateTime @default(now())
+
+  business Business @relation(fields: [businessId], references: [id])
+  call     Call     @relation(fields: [callId], references: [id])
+
+  @@index([businessId])
+  @@index([callId])
+}
+
+model PhoneNumber {
+  id              String           @id @default(cuid())
+  businessId      String
+  provider        TelephonyProvider
+  e164            String
+  providerNumberId String?
+  label           String?
+  inboundEnabled  Boolean          @default(true)
+  outboundEnabled Boolean          @default(true)
+  isPrimaryOutbound Boolean        @default(false)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+
+  business Business @relation(fields: [businessId], references: [id])
+
+  @@unique([businessId, provider, e164])
+  @@index([businessId])
+  @@index([provider])
+  @@index([e164])
+  @@index([provider, e164, deletedAt])
+  @@index([deletedAt])
+}
+
+model CallSummary {
+  id        String    @id @default(cuid())
+  businessId String
+  callId    String    @unique
+  locale    AppLocale @default(en)
+  summary   String
+  details   Json      @default("{}")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id])
+  call     Call     @relation(fields: [callId], references: [id])
+
+  @@index([businessId])
+}
+
+model Intent {
+  id          String   @id @default(cuid())
+  businessId  String
+  key         String
+  nameEn      String
+  nameAr      String
+  descriptionEn String?
+  descriptionAr String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  business Business @relation(fields: [businessId], references: [id])
+
+  @@unique([businessId, key])
+  @@index([businessId])
+  @@index([deletedAt])
+}
+
+model UsageLog {
+  id         String    @id @default(cuid())
+  businessId String
+  type       UsageType
+  quantity   BigInt    @default(0)
+  costUsd    Decimal   @default(0) @db.Decimal(65, 30)
+  callId     String?
+  agentId    String?
+  dedupeKey  String?
+  recordedAt DateTime  @default(now())
+  createdAt  DateTime  @default(now())
+
+  business Business @relation(fields: [businessId], references: [id])
+  call     Call?     @relation(fields: [callId], references: [id])
+  agent    Agent?    @relation(fields: [agentId], references: [id])
+
+  @@unique([businessId, dedupeKey])
+  @@index([businessId])
+  @@index([businessId, recordedAt])
+  @@index([businessId, type, recordedAt])
+  @@index([recordedAt])
+  @@index([type])
+  @@index([callId])
+}
+
+model ProviderConfig {
+  id         String       @id @default(cuid())
+  businessId String
+  type       ProviderType
+  isActive   Boolean      @default(true)
+  config     Json         @default("{}")
+  secretCiphertext String?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  deletedAt  DateTime?
+
+  business Business @relation(fields: [businessId], references: [id])
+
+  @@unique([businessId, type])
+  @@index([businessId])
+  @@index([type])
+  @@index([deletedAt])
+}
+
+model CachedAudio {
+  id         String    @id @default(cuid())
+  businessId String
+  cacheKey   String
+  locale     AppLocale @default(en)
+  voiceProvider String
+  voiceId    String?
+  text       String
+  textHash   String
+  r2Key      String
+  bytes      BigInt    @default(0)
+  format     String    @default("mp3")
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime?
+  lastAccessedAt DateTime?
+  accessCount Int      @default(0)
+
+  business Business @relation(fields: [businessId], references: [id])
+
+  @@unique([businessId, cacheKey])
+  @@index([businessId])
+  @@index([expiresAt])
+  @@index([textHash])
+}
+
+model WebhookEvent {
+  id            String        @id @default(cuid())
+  businessId    String
+  provider      String
+  eventType     String
+  providerEventId String?
+  idempotencyKey String?
+  headers       Json          @default("{}")
+  body          Json          @default("{}")
+  signatureValid Boolean      @default(false)
+  status        WebhookStatus @default(RECEIVED)
+  receivedAt    DateTime      @default(now())
+  processedAt   DateTime?
+  attempts      Int           @default(0)
+  nextRetryAt   DateTime?
+  error         String?
+
+  business Business @relation(fields: [businessId], references: [id])
+
+  @@index([businessId])
+  @@index([receivedAt])
+  @@index([status])
+  @@index([nextRetryAt])
+  @@unique([businessId, provider, providerEventId])
+  @@unique([businessId, idempotencyKey])
+}
+
+model WhatsAppMessage {
+  id          String              @id @default(cuid())
+  businessId  String
+  provider    String
+  providerMessageId String?
+  direction   CallDirection
+  fromNumber  String
+  toNumber    String
+  bodyText    String?
+  media       Json                @default("[]")
+  status      WhatsAppMessageStatus @default(QUEUED)
+  sentAt      DateTime?
+  deliveredAt DateTime?
+  readAt      DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id])
+
+  @@index([businessId])
+  @@index([providerMessageId])
+  @@index([status])
+}
+
+model VoiceModule {
+  id          String   @id @default(cuid())
+  businessId  String
+  name        String
+  description String?
+  inputs      Json     @default("[]")
+  outputs     Json     @default("[]")
+  status      WorkflowStatus @default(draft)
+  version     Int      @default(1)
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  deletedAt   DateTime?
+
+  business Business @relation(fields: [businessId], references: [id])
+
+  @@index([businessId])
+  @@index([deletedAt])
+}
+
+model Workflow {
+  id          String   @id @default(cuid())
+  businessId  String
+  name        String
+  trigger     Json
+  moduleGraph Json
+  aiPolicy    Json
+  status      WorkflowStatus @default(draft)
+  version     Int      @default(1)
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  deletedAt   DateTime?
+
+  business Business @relation(fields: [businessId], references: [id])
+  runs WorkflowRun[]
+
+  @@index([businessId])
+  @@index([deletedAt])
+}
+
+model WorkflowRun {
+  id          String   @id @default(cuid())
+  businessId  String
+  callId      String
+  workflowId  String
+  status      RunStatus @default(running)
+  steps       Json     @default("[]")
+  totalCostUsd Decimal @default(0) @db.Decimal(65, 30)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id])
+  call     Call @relation(fields: [callId], references: [id])
+  workflow Workflow @relation(fields: [workflowId], references: [id])
+
+  @@index([businessId])
+  @@index([callId])
+  @@index([callId, createdAt])
+  @@index([workflowId])
+}
+
+model TelephonyEvent {
+  id        String   @id @default(cuid())
+  businessId String
+  callId    String
+  provider  TelephonyProvider
+  eventType String
+  payload   Json
+  occurredAt DateTime
+  receivedAt DateTime @default(now())
+
+  business Business @relation(fields: [businessId], references: [id])
+  call Call @relation(fields: [callId], references: [id])
+
+  @@index([businessId])
+  @@index([callId])
+  @@index([callId, occurredAt])
+  @@index([provider])
+  @@index([eventType])
+}
+

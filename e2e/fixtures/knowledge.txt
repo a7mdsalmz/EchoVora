@@ -1,0 +1,3 @@
+EchoVora returns orders confirmation outcomes: CONFIRMED, REJECTED, RESCHEDULED, CHANGE_ADDRESS, HUMAN_REVIEW.
+If the customer requests a human agent, escalate to HUMAN_REVIEW.
+
