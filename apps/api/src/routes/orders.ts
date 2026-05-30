@@ -17,6 +17,12 @@ const CreateSchema = z.object({
   amount: z.coerce.number().nonnegative().default(0),
   currency: z.string().min(1).default("USD"),
   notes: z.string().optional(),
+  metadata: z
+    .object({
+      address: z.string().optional(),
+      items: z.string().optional()
+    })
+    .optional(),
   customer: z.object({
     name: z.string().optional(),
     phone: z.string().min(5),
@@ -128,6 +134,7 @@ export const orderRoutes: FastifyPluginAsync = async (app) => {
             amount: input.amount,
             currency: input.currency,
             notes: input.notes,
+            metadata: (input.metadata ?? {}) as any,
             status: OrderStatus.PENDING
           }
         });
@@ -233,6 +240,7 @@ export const orderRoutes: FastifyPluginAsync = async (app) => {
               amount: r.amount ? Number(r.amount) : 0,
               currency: r.currency ?? "USD",
               notes: r.notes,
+              metadata: { address: r.address, items: r.items } as any,
               status: OrderStatus.PENDING
             }
           });

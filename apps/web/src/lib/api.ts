@@ -95,6 +95,7 @@ export async function apiCreateOrder(
     amount: number;
     currency: string;
     notes?: string;
+    metadata?: { address?: string; items?: string };
     customer: { name?: string; phone: string; email?: string };
   }
 ) {
@@ -636,7 +637,7 @@ export async function apiAdminUpdateBillingPlan(
 export type AdminProviderConfig = {
   id: string;
   businessId: string;
-  type: "TELEPHONY_TWILIO" | "TELEPHONY_TELNYX" | "TELEPHONY_PLIVO" | "VOICE_ELEVENLABS";
+  type: "TELEPHONY_TWILIO" | "TELEPHONY_TELNYX" | "TELEPHONY_PLIVO" | "VOICE_ELEVENLABS" | "ORDER_CONFIRMATION_SCRIPT_AR";
   isActive: boolean;
   config: Record<string, unknown>;
   updatedAt: string;

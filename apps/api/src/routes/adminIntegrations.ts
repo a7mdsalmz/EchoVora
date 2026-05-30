@@ -7,7 +7,7 @@ import { encryptSecret } from "../utils/secretCrypto.js";
 const BusinessParam = z.object({ businessId: z.string().min(1) });
 
 const ProviderTypeParam = z.object({
-  type: z.enum(["TELEPHONY_TWILIO", "TELEPHONY_TELNYX", "TELEPHONY_PLIVO", "VOICE_ELEVENLABS"])
+  type: z.enum(["TELEPHONY_TWILIO", "TELEPHONY_TELNYX", "TELEPHONY_PLIVO", "VOICE_ELEVENLABS", "ORDER_CONFIRMATION_SCRIPT_AR"])
 });
 
 const UpsertBody = z.object({
@@ -63,7 +63,15 @@ export const adminIntegrationsRoutes: FastifyPluginAsync = async (app) => {
       where: {
         businessId: p.businessId,
         deletedAt: null,
-        type: { in: [ProviderType.TELEPHONY_TWILIO, ProviderType.TELEPHONY_TELNYX, ProviderType.TELEPHONY_PLIVO, ProviderType.VOICE_ELEVENLABS] }
+        type: {
+          in: [
+            ProviderType.TELEPHONY_TWILIO,
+            ProviderType.TELEPHONY_TELNYX,
+            ProviderType.TELEPHONY_PLIVO,
+            ProviderType.VOICE_ELEVENLABS,
+            ProviderType.ORDER_CONFIRMATION_SCRIPT_AR
+          ]
+        }
       },
       orderBy: { updatedAt: "desc" }
     });

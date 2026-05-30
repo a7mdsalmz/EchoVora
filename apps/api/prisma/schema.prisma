@@ -111,6 +111,7 @@ enum ProviderType {
   VOICE_ELEVENLABS
   STORAGE_R2
   WHATSAPP
+  ORDER_CONFIRMATION_SCRIPT_AR
 }
 
 enum WebhookStatus {

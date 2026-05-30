@@ -9,6 +9,7 @@ import { tenantRoutes } from "./routes/tenants.js";
 import { telephonyRoutes } from "./routes/telephony.js";
 import { telephonyAnswerRoutes } from "./routes/telephonyAnswer.js";
 import { telephonyTtsRoutes } from "./routes/telephonyTts.js";
+import { telephonyDtmfRoutes } from "./routes/telephonyDtmf.js";
 import { telephonySettingsRoutes } from "./routes/telephonySettings.js";
 import { callCenterRoutes } from "./routes/callCenter.js";
 import { billingRoutes } from "./routes/billing.js";
@@ -37,6 +38,7 @@ export async function buildApp() {
   await app.register(telephonyRoutes, { prefix: "/api" });
   await app.register(telephonyAnswerRoutes, { prefix: "/api" });
   await app.register(telephonyTtsRoutes, { prefix: "/api" });
+  await app.register(telephonyDtmfRoutes, { prefix: "/api" });
   await app.register(telephonySettingsRoutes, { prefix: "/api" });
   await app.register(callCenterRoutes, { prefix: "/api" });
   await app.register(billingRoutes, { prefix: "/api" });

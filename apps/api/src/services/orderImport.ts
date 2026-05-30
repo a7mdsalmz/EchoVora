@@ -9,6 +9,8 @@ export type ImportedOrderRow = {
   amount?: string | number;
   currency?: string;
   notes?: string;
+  address?: string;
+  items?: string;
 };
 
 export function normalizePhone(input: string): string {
@@ -44,7 +46,9 @@ export function parseOrdersBuffer(args: { filename?: string; buffer: Buffer }): 
         customerEmail: pickString(r.customerEmail ?? r.CustomerEmail ?? r.email ?? r.Email),
         amount: pickString(r.amount ?? r.Amount),
         currency: pickString(r.currency ?? r.Currency),
-        notes: pickString(r.notes ?? r.Notes)
+        notes: pickString(r.notes ?? r.Notes),
+        address: pickString(r.address ?? r.Address),
+        items: pickString(r.items ?? r.Items)
       });
     }
     return out;
@@ -70,7 +74,9 @@ export function parseOrdersBuffer(args: { filename?: string; buffer: Buffer }): 
       customerEmail: pickString(r.customerEmail ?? r.CustomerEmail ?? r.email ?? r.Email),
       amount: pickString(r.amount ?? r.Amount),
       currency: pickString(r.currency ?? r.Currency),
-      notes: pickString(r.notes ?? r.Notes)
+      notes: pickString(r.notes ?? r.Notes),
+      address: pickString(r.address ?? r.Address),
+      items: pickString(r.items ?? r.Items)
     });
   }
   return out;

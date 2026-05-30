@@ -54,6 +54,8 @@ export default function AdminDashboardPage() {
   const [elevenVoiceEn, setElevenVoiceEn] = useState("");
   const [elevenVoiceAr, setElevenVoiceAr] = useState("");
 
+  const [orderScriptAr, setOrderScriptAr] = useState("");
+
   const [newTwilioNumber, setNewTwilioNumber] = useState("");
 
   const refresh = useCallback(async () => {
@@ -116,6 +118,16 @@ export default function AdminDashboardPage() {
     setElevenVoiceAr(typeof cfg.voiceIdAr === "string" ? cfg.voiceIdAr : "");
   }, [providerConfigs]);
 
+  useEffect(() => {
+    const row = providerConfigs.find((c) => c.type === "ORDER_CONFIRMATION_SCRIPT_AR");
+    const cfg = (row?.config ?? {}) as any;
+    const tpl =
+      typeof cfg.templateAr === "string" && cfg.templateAr.trim().length
+        ? String(cfg.templateAr)
+        : "مرحباً {{customerName}}. هذه مكالمة من {{businessName}}. عنوان التوصيل: {{customerAddress}}. طلبك: {{orderItems}}. المبلغ الإجمالي: {{totalAmount}}. لتأكيد الطلب اضغط 1. لإلغاء الطلب اضغط 2. لتعديل الطلب اضغط 3.";
+    setOrderScriptAr(tpl);
+  }, [providerConfigs]);
+
   async function savePlan() {
     if (!accessToken || !selectedPlan) return;
     setLoading(true);
@@ -167,6 +179,25 @@ export default function AdminDashboardPage() {
           modelId: elevenModelId,
           voiceIdEn: elevenVoiceEn,
           voiceIdAr: elevenVoiceAr
+        }
+      });
+      await refreshIntegrations();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function saveOrderScriptAr() {
+    if (!accessToken || !selectedBusinessId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await apiAdminUpsertProviderConfig(accessToken, selectedBusinessId, "ORDER_CONFIRMATION_SCRIPT_AR", {
+        isActive: true,
+        config: {
+          templateAr: orderScriptAr
         }
       });
       await refreshIntegrations();
@@ -347,6 +378,29 @@ export default function AdminDashboardPage() {
                 ) : (
                   <div className="text-[color:var(--muted)]">{t("admin.noPhoneNumbers")}</div>
                 )}
+              </div>
+            </Card>
+
+            <Card className="border-[color:var(--border)] bg-white/5 p-5 lg:col-span-2">
+              <div className="text-sm font-semibold">{t("admin.orderConfirmationScriptArTitle")}</div>
+              <div className="mt-2 text-xs text-[color:var(--muted)]">{t("admin.orderConfirmationScriptArHint")}</div>
+              <div className="mt-4 grid grid-cols-1 gap-2">
+                <textarea
+                  dir="rtl"
+                  className="min-h-40 w-full rounded-[var(--radius)] border border-[color:var(--border)] bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-white/10"
+                  value={orderScriptAr}
+                  onChange={(e) => setOrderScriptAr(e.target.value)}
+                />
+                <div className="text-xs text-[color:var(--muted)]">
+                  {t("admin.orderConfirmationScriptArVars", {
+                    vars: "{{businessName}}, {{customerName}}, {{customerAddress}}, {{orderItems}}, {{totalAmount}}"
+                  })}
+                </div>
+                <div className="flex justify-end">
+                  <Button disabled={loading || !accessToken || !selectedBusinessId} onClick={() => saveOrderScriptAr()}>
+                    {t("admin.saveIntegrations")}
+                  </Button>
+                </div>
               </div>
             </Card>
           </div>

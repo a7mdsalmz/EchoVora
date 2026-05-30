@@ -25,6 +25,8 @@ export default function NewOrderPage() {
   const [amount, setAmount] = React.useState("0");
   const [currency, setCurrency] = React.useState("USD");
   const [notes, setNotes] = React.useState("");
+  const [address, setAddress] = React.useState("");
+  const [items, setItems] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -39,6 +41,7 @@ export default function NewOrderPage() {
         amount: Number(amount || 0),
         currency,
         notes: notes || undefined,
+        metadata: { address: address || undefined, items: items || undefined },
         customer: {
           name: customerName || undefined,
           phone: customerPhone,
@@ -68,6 +71,8 @@ export default function NewOrderPage() {
             <Input value={externalId} onChange={(e) => setExternalId(e.target.value)} placeholder={t("orders.fields.externalId")} />
             <Input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={t("orders.fields.amount")} />
             <Input value={currency} onChange={(e) => setCurrency(e.target.value)} placeholder={t("orders.fields.currency")} />
+            <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder={t("orders.fields.address")} />
+            <Input value={items} onChange={(e) => setItems(e.target.value)} placeholder={t("orders.fields.items")} />
             <div className="sm:col-span-2">
               <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("orders.fields.notes")} />
             </div>

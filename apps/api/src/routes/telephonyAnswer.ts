@@ -65,9 +65,10 @@ export const telephonyAnswerRoutes: FastifyPluginAsync = async (app) => {
     const apiKeyRaw = (cfgJson.apiKey ?? app.config.ELEVENLABS_API_KEY) as unknown;
     const apiKey =
       typeof apiKeyRaw === "string" ? (maybeDecryptSecret(apiKeyRaw, app.config.CONFIG_ENCRYPTION_KEY) as string) : undefined;
-    const voiceIdEn = (cfgJson.voiceIdEn ?? app.config.ELEVENLABS_VOICE_ID_EN) as string | undefined;
     const voiceIdAr = (cfgJson.voiceIdAr ?? app.config.ELEVENLABS_VOICE_ID_AR) as string | undefined;
-    const canUseEleven = Boolean(apiKey) && Boolean(voiceIdEn) && Boolean(voiceIdAr);
+    const voiceIdEn = (cfgJson.voiceIdEn ?? app.config.ELEVENLABS_VOICE_ID_EN) as string | undefined;
+    const voiceId = call.orderId ? voiceIdAr ?? voiceIdEn : call.locale === "ar" ? voiceIdAr : voiceIdEn;
+    const canUseEleven = Boolean(apiKey) && Boolean(voiceId);
     const audioUrl = canUseEleven ? getFullUrl(req, `/api/telephony/tts?token=${encodeURIComponent(query.token)}`) : null;
 
     if (call.provider === "PLIVO") {
@@ -86,6 +87,12 @@ export const telephonyAnswerRoutes: FastifyPluginAsync = async (app) => {
     reply.type("text/xml");
     if (audioUrl) {
       const safeUrl = escapeXml(audioUrl);
+      if (call.provider === "TWILIO" && call.orderId) {
+        const actionUrl = escapeXml(getFullUrl(req, `/api/telephony/dtmf?token=${encodeURIComponent(query.token)}`));
+        return reply.send(
+          `<?xml version="1.0" encoding="UTF-8"?><Response><Gather numDigits="1" timeout="10" action="${actionUrl}" method="GET"><Play>${safeUrl}</Play></Gather><Hangup/></Response>`
+        );
+      }
       return reply.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Play>${safeUrl}</Play><Hangup/></Response>`);
     }
     const text = call.locale === "ar" ? "مرحباً. سيتم تحويلك الآن." : "Hello. Connecting you now.";
