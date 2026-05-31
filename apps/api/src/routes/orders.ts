@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from "fastify";
 import multipart from "@fastify/multipart";
 import { z } from "zod";
+import { randomUUID } from "node:crypto";
 import { prisma } from "../db.js";
 import { OrderCampaignStatus, RoleKey, OrderStatus } from "@prisma/client";
 import { createRedis } from "../queues/redis.js";
@@ -202,7 +203,7 @@ export const orderRoutes: FastifyPluginAsync = async (app) => {
         data: { status: OrderStatus.QUEUED, nextCallAt: now }
       });
 
-      const jobId = `oc:${businessId}:${order.id}:${now.getTime()}`;
+      const jobId = `oc:${businessId}:${order.id}:${randomUUID()}`;
       try {
         await getQueue().add("confirm", { businessId, orderId: order.id }, { jobId });
       } catch (err) {
@@ -336,7 +337,7 @@ export const orderRoutes: FastifyPluginAsync = async (app) => {
           await getQueue().add(
             "confirm",
             { businessId, orderId: o.id },
-            { jobId: `oc:${businessId}:${o.id}:${scheduledAt.getTime()}`, delay: delayMs }
+            { jobId: `oc:${businessId}:${o.id}:${scheduledAt.getTime()}:${randomUUID()}`, delay: delayMs }
           );
         }
       } catch (err) {
