@@ -110,7 +110,7 @@ async function emitTelephonyEvent(args: {
   await telephonyEventsQueue.add(
     "ingest",
     { businessId: args.businessId, telephonyEventId: event.id },
-    { jobId: `te:${event.id}`, delay: args.delayMs ?? 0 }
+    { jobId: `te-${event.id}`, delay: args.delayMs ?? 0 }
   );
 }
 
@@ -293,7 +293,7 @@ const telephonyEventsWorker = new Worker(
     ) {
       const agent = await prisma.agent.findUnique({ where: { id: call.agentId } });
       if (agent && agent.businessId === businessId && agent.type === AgentType.VOICE_CALL_CENTER && !agent.deletedAt) {
-        await callCenterSummariesQueue.add("summarize", { businessId, callId: call.id }, { jobId: `ccsum:${businessId}:${call.id}` });
+        await callCenterSummariesQueue.add("summarize", { businessId, callId: call.id }, { jobId: `ccsum-${businessId}-${call.id}` });
       }
     }
 
@@ -354,7 +354,7 @@ const telephonyEventsWorker = new Worker(
       await orderConfirmationQueue.add(
         "confirm",
         { businessId, orderId: order.id },
-        { jobId: `oc:${businessId}:${order.id}:${nextCallAt.getTime()}`, delay: delayMs }
+        { jobId: `oc-${businessId}-${order.id}-${nextCallAt.getTime()}`, delay: delayMs }
       );
     }
   },
@@ -381,7 +381,7 @@ const orderConfirmationWorker = new Worker(
       await orderConfirmationQueue.add(
         "confirm",
         { businessId, orderId: order.id },
-        { jobId: `oc:${businessId}:${order.id}:${order.nextCallAt.getTime()}`, delay: delayMs }
+        { jobId: `oc-${businessId}-${order.id}-${order.nextCallAt.getTime()}`, delay: delayMs }
       );
       return;
     }
@@ -510,7 +510,7 @@ const orderConfirmationWorker = new Worker(
       await orderConfirmationQueue.add(
         "confirm",
         { businessId, orderId: order.id },
-        { jobId: `oc:${businessId}:${order.id}:${nextCallAt.getTime()}`, delay: requeueDelayMs }
+        { jobId: `oc-${businessId}-${order.id}-${nextCallAt.getTime()}`, delay: requeueDelayMs }
       );
 
       return;

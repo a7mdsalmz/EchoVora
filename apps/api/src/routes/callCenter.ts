@@ -298,7 +298,7 @@ export const callCenterRoutes: FastifyPluginAsync = async (app) => {
       }
     });
 
-    await getQueue().add("ingest", { businessId: req.user.businessId, sourceId: source.id }, { jobId: `ki:${req.user.businessId}:${source.id}` });
+    await getQueue().add("ingest", { businessId: req.user.businessId, sourceId: source.id }, { jobId: `ki-${req.user.businessId}-${source.id}` });
     return { source };
   });
 
@@ -348,7 +348,7 @@ export const callCenterRoutes: FastifyPluginAsync = async (app) => {
           costUsd: 0
         }
       });
-      await getQueue().add("ingest", { businessId: req.user.businessId, sourceId: updated.id }, { jobId: `ki:${req.user.businessId}:${updated.id}` });
+      await getQueue().add("ingest", { businessId: req.user.businessId, sourceId: updated.id }, { jobId: `ki-${req.user.businessId}-${updated.id}` });
       return { source: updated };
     }
 

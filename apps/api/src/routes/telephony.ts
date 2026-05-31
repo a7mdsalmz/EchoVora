@@ -242,7 +242,7 @@ export const telephonyRoutes: FastifyPluginAsync = async (app) => {
       }
     });
 
-    await getQueue().add("ingest", { businessId: mappedBusinessId, telephonyEventId: event.id }, { jobId: `te:${event.id}` });
+    await getQueue().add("ingest", { businessId: mappedBusinessId, telephonyEventId: event.id }, { jobId: `te-${event.id}` });
     return reply.send({ ok: true });
   }
 
