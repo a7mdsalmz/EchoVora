@@ -95,6 +95,8 @@
     "queuePending": "Queue pending",
     "pendingCampaignName": "Pending orders campaign",
     "queueOne": "Queue call",
+    "requeueOne": "Requeue call",
+    "confirmRequeue": "This order is already queued. Requeue it anyway?",
     "uploadTitle": "Upload orders",
     "uploadSubtitle": "Import orders from CSV or Excel",
     "uploadFormTitle": "Upload file",

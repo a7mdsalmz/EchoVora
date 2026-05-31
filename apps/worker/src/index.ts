@@ -20,6 +20,17 @@ const env = getWorkerEnv();
 const RedisCtor = IORedis as any;
 const redis = new RedisCtor(env.REDIS_URL, { maxRetriesPerRequest: null });
 
+process.stderr.write(`worker_boot redis_url=${env.REDIS_URL}\n`);
+redis.on("ready", () => {
+  process.stderr.write("redis_ready\n");
+});
+redis.on("error", (err: any) => {
+  process.stderr.write(`redis_error ${err?.message ?? String(err)}\n`);
+});
+redis.on("reconnecting", () => {
+  process.stderr.write("redis_reconnecting\n");
+});
+
 const telephonyEventsQueue = new Queue("telephony-events", {
   connection: redis,
   defaultJobOptions: {
@@ -477,7 +488,10 @@ const orderConfirmationWorker = new Worker(
           data: { providerCallId: result.providerCallId, status: CallStatus.IN_PROGRESS }
         });
       }
-    } catch {
+    } catch (err: any) {
+      process.stderr.write(
+        `order_confirmation_call_create_failed jobId=${job?.id ?? "unknown"} orderId=${order.id} ${err?.message ?? String(err)}\n`
+      );
       const delayMs = retryDelayMsForAttempt(call.updated.callAttempts);
       const nextCallAt = new Date(Date.now() + delayMs);
 
@@ -647,23 +661,39 @@ const callCenterSummariesWorker = new Worker(
 );
 
 telephonyEventsWorker.on("failed", (job, err) => {
-  process.stderr.write(`job_failed ${job?.id ?? "unknown"} ${err.message}\n`);
+  process.stderr.write(`job_failed queue=telephony-events id=${job?.id ?? "unknown"} name=${job?.name ?? "unknown"} ${err?.stack ?? err.message}\n`);
 });
 
 orderConfirmationWorker.on("failed", (job, err) => {
-  process.stderr.write(`job_failed ${job?.id ?? "unknown"} ${err.message}\n`);
+  process.stderr.write(`job_failed queue=order-confirmation id=${job?.id ?? "unknown"} name=${job?.name ?? "unknown"} ${err?.stack ?? err.message}\n`);
 });
 
 telephonyTestCallsWorker.on("failed", (job, err) => {
-  process.stderr.write(`job_failed ${job?.id ?? "unknown"} ${err.message}\n`);
+  process.stderr.write(`job_failed queue=telephony-test-calls id=${job?.id ?? "unknown"} name=${job?.name ?? "unknown"} ${err?.stack ?? err.message}\n`);
 });
 
 knowledgeIngestWorker.on("failed", (job, err) => {
-  process.stderr.write(`job_failed ${job?.id ?? "unknown"} ${err.message}\n`);
+  process.stderr.write(`job_failed queue=knowledge-ingest id=${job?.id ?? "unknown"} name=${job?.name ?? "unknown"} ${err?.stack ?? err.message}\n`);
 });
 
 callCenterSummariesWorker.on("failed", (job, err) => {
-  process.stderr.write(`job_failed ${job?.id ?? "unknown"} ${err.message}\n`);
+  process.stderr.write(`job_failed queue=call-center-summaries id=${job?.id ?? "unknown"} name=${job?.name ?? "unknown"} ${err?.stack ?? err.message}\n`);
+});
+
+telephonyEventsWorker.on("error", (err: any) => {
+  process.stderr.write(`worker_error queue=telephony-events ${err?.stack ?? err?.message ?? String(err)}\n`);
+});
+orderConfirmationWorker.on("error", (err: any) => {
+  process.stderr.write(`worker_error queue=order-confirmation ${err?.stack ?? err?.message ?? String(err)}\n`);
+});
+telephonyTestCallsWorker.on("error", (err: any) => {
+  process.stderr.write(`worker_error queue=telephony-test-calls ${err?.stack ?? err?.message ?? String(err)}\n`);
+});
+knowledgeIngestWorker.on("error", (err: any) => {
+  process.stderr.write(`worker_error queue=knowledge-ingest ${err?.stack ?? err?.message ?? String(err)}\n`);
+});
+callCenterSummariesWorker.on("error", (err: any) => {
+  process.stderr.write(`worker_error queue=call-center-summaries ${err?.stack ?? err?.message ?? String(err)}\n`);
 });
 
 process.on("SIGINT", async () => {

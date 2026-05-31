@@ -22,6 +22,7 @@ export default function OrderDetailPage() {
   const [order, setOrder] = React.useState<OrderDetail | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [queueing, setQueueing] = React.useState(false);
 
   const load = React.useCallback(async () => {
     if (!accessToken || !orderId) return;
@@ -42,8 +43,20 @@ export default function OrderDetailPage() {
 
   async function queueNow() {
     if (!accessToken) return;
-    await apiQueueOrderConfirmation(accessToken, orderId);
-    await load();
+    if (order?.status === "QUEUED") {
+      const ok = window.confirm(t("orders.confirmRequeue"));
+      if (!ok) return;
+    }
+    setQueueing(true);
+    setError(null);
+    try {
+      await apiQueueOrderConfirmation(accessToken, orderId);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("common.failed"));
+    } finally {
+      setQueueing(false);
+    }
   }
 
   return (
@@ -58,8 +71,8 @@ export default function OrderDetailPage() {
                 {t("orders.backToOrders")}
               </Button>
             </Link>
-            <Button size="sm" onClick={() => void queueNow()} disabled={loading || !order || order.status === "CALLING" || order.status === "QUEUED"}>
-              {t("orders.queueOne")}
+            <Button size="sm" onClick={() => void queueNow()} disabled={loading || queueing || !order || order.status === "CALLING"}>
+              {order?.status === "QUEUED" ? t("orders.requeueOne") : t("orders.queueOne")}
             </Button>
           </>
         }

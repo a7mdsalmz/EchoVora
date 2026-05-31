@@ -55,6 +55,19 @@ export const orderRoutes: FastifyPluginAsync = async (app) => {
   });
 
   app.get(
+    "/orders/queue-debug",
+    {
+      preHandler: [app.authorize(RoleKey.MANAGER)]
+    },
+    async () => {
+      const q = getQueue();
+      const ping = await redis.ping();
+      const counts = await q.getJobCounts("wait", "active", "completed", "failed", "delayed", "paused");
+      return { ok: true, ping, counts };
+    }
+  );
+
+  app.get(
     "/orders",
     {
       preHandler: [app.authorize(RoleKey.VIEWER)]
@@ -189,8 +202,17 @@ export const orderRoutes: FastifyPluginAsync = async (app) => {
         data: { status: OrderStatus.QUEUED, nextCallAt: now }
       });
 
-      await getQueue().add("confirm", { businessId, orderId: order.id }, { jobId: `oc:${businessId}:${order.id}:${now.getTime()}` });
-      return { ok: true, order: updated };
+      const jobId = `oc:${businessId}:${order.id}:${now.getTime()}`;
+      try {
+        await getQueue().add("confirm", { businessId, orderId: order.id }, { jobId });
+      } catch (err) {
+        app.log.error({ err, businessId, orderId: order.id }, "order_confirmation_enqueue_failed");
+        throw app.httpErrors.internalServerError("Failed to enqueue order confirmation");
+      }
+
+      const queueCounts = await getQueue().getJobCounts();
+      app.log.info({ businessId, orderId: order.id, jobId, queueCounts }, "order_confirmation_enqueued");
+      return { ok: true, jobId, queueCounts, order: updated };
     }
   );
 
@@ -309,15 +331,22 @@ export const orderRoutes: FastifyPluginAsync = async (app) => {
       });
 
       const delayMs = Math.max(0, scheduledAt.getTime() - Date.now());
-      for (const o of orders) {
-        await getQueue().add(
-          "confirm",
-          { businessId, orderId: o.id },
-          { jobId: `oc:${businessId}:${o.id}:${scheduledAt.getTime()}`, delay: delayMs }
-        );
+      try {
+        for (const o of orders) {
+          await getQueue().add(
+            "confirm",
+            { businessId, orderId: o.id },
+            { jobId: `oc:${businessId}:${o.id}:${scheduledAt.getTime()}`, delay: delayMs }
+          );
+        }
+      } catch (err) {
+        app.log.error({ err, businessId, campaignId: campaign.id }, "order_campaign_enqueue_failed");
+        throw app.httpErrors.internalServerError("Failed to enqueue order campaign");
       }
 
-      return { ok: true, campaignId: campaign.id, queued: orders.length };
+      const queueCounts = await getQueue().getJobCounts();
+      app.log.info({ businessId, campaignId: campaign.id, queued: orders.length, queueCounts }, "order_campaign_enqueued");
+      return { ok: true, campaignId: campaign.id, queued: orders.length, queueCounts };
     }
   );
 

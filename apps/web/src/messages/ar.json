@@ -95,6 +95,8 @@
     "queuePending": "جدولة المعلّقة",
     "pendingCampaignName": "حملة الطلبات المعلّقة",
     "queueOne": "جدولة مكالمة",
+    "requeueOne": "إعادة جدولة المكالمة",
+    "confirmRequeue": "هذا الطلب مجدول بالفعل. هل تريد إعادة الجدولة؟",
     "uploadTitle": "رفع الطلبات",
     "uploadSubtitle": "استيراد الطلبات من CSV أو Excel",
     "uploadFormTitle": "رفع ملف",

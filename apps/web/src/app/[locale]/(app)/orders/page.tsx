@@ -26,6 +26,7 @@ export default function OrdersPage() {
   const [q, setQ] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [queueingId, setQueueingId] = React.useState<string | null>(null);
 
   const load = React.useCallback(
     async (query?: string) => {
@@ -60,14 +61,32 @@ export default function OrdersPage() {
 
   async function queueOne(id: string) {
     if (!accessToken) return;
-    await apiQueueOrderConfirmation(accessToken, id);
-    await load(q);
+    const item = items.find((x) => x.id === id);
+    if (item?.status === "QUEUED") {
+      const ok = window.confirm(t("orders.confirmRequeue"));
+      if (!ok) return;
+    }
+    setQueueingId(id);
+    setError(null);
+    try {
+      await apiQueueOrderConfirmation(accessToken, id);
+      await load(q);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("common.failed"));
+    } finally {
+      setQueueingId(null);
+    }
   }
 
   async function queueCampaign() {
     if (!accessToken) return;
-    await apiCreateOrderCampaign(accessToken, { status: "PENDING", limit: 500, name: t("orders.pendingCampaignName") });
-    await load(q);
+    setError(null);
+    try {
+      await apiCreateOrderCampaign(accessToken, { status: "PENDING", limit: 500, name: t("orders.pendingCampaignName") });
+      await load(q);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("common.failed"));
+    }
   }
 
   function StatusPill({ s }: { s: OrderStatus }) {
@@ -212,9 +231,9 @@ export default function OrdersPage() {
                           size="sm"
                           variant="secondary"
                           onClick={() => void queueOne(o.id)}
-                          disabled={loading || o.status === "CALLING" || o.status === "QUEUED"}
+                          disabled={loading || queueingId === o.id || o.status === "CALLING"}
                         >
-                          {t("orders.queueOne")}
+                          {o.status === "QUEUED" ? t("orders.requeueOne") : t("orders.queueOne")}
                         </Button>
                       </div>
                     </td>

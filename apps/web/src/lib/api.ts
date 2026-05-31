@@ -114,7 +114,7 @@ export async function apiQueueOrderConfirmation(accessToken: string, orderId: st
     headers: { authorization: `Bearer ${accessToken}` }
   });
   if (!res.ok) throw new Error(await res.text());
-  return res.json() as Promise<{ ok: boolean }>;
+  return res.json() as Promise<{ ok: boolean; jobId?: string; queueCounts?: Record<string, number> }>;
 }
 
 export async function apiImportOrders(accessToken: string, file: File) {
