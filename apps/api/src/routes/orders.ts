@@ -207,8 +207,10 @@ export const orderRoutes: FastifyPluginAsync = async (app) => {
       try {
         await getQueue().add("confirm", { businessId, orderId: order.id }, { jobId });
       } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        process.stderr.write(`order_confirmation_enqueue_failed orderId=${order.id} ${message}\n`);
         app.log.error({ err, businessId, orderId: order.id }, "order_confirmation_enqueue_failed");
-        throw app.httpErrors.internalServerError("Failed to enqueue order confirmation");
+        throw app.httpErrors.internalServerError(`Failed to enqueue order confirmation: ${message}`);
       }
 
       const queueCounts = await getQueue().getJobCounts();
@@ -341,8 +343,10 @@ export const orderRoutes: FastifyPluginAsync = async (app) => {
           );
         }
       } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        process.stderr.write(`order_campaign_enqueue_failed campaignId=${campaign.id} ${message}\n`);
         app.log.error({ err, businessId, campaignId: campaign.id }, "order_campaign_enqueue_failed");
-        throw app.httpErrors.internalServerError("Failed to enqueue order campaign");
+        throw app.httpErrors.internalServerError(`Failed to enqueue order campaign: ${message}`);
       }
 
       const queueCounts = await getQueue().getJobCounts();
