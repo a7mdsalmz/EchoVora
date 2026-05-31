@@ -14,10 +14,12 @@ import {
   apiAdminBillingOverview,
   apiAdminBillingPlans,
   apiAdminCreatePhoneNumber,
+  apiAdminDeletePhoneNumber,
   apiAdminPhoneNumbers,
   apiAdminProviderConfigs,
   apiAdminUpsertProviderConfig,
   apiAdminUpdateBillingPlan,
+  apiAdminUpdatePhoneNumber,
   apiTenants,
   type AdminBillingOverview,
   type AdminPhoneNumber,
@@ -44,6 +46,7 @@ export default function AdminDashboardPage() {
   const [selectedBusinessId, setSelectedBusinessId] = useState<string>("");
   const [providerConfigs, setProviderConfigs] = useState<AdminProviderConfig[]>([]);
   const [phoneNumbers, setPhoneNumbers] = useState<AdminPhoneNumber[]>([]);
+  const [phoneEdits, setPhoneEdits] = useState<Record<string, { e164: string; label: string; inboundEnabled: boolean; outboundEnabled: boolean; isPrimaryOutbound: boolean }>>({});
 
   const [twilioAccountSid, setTwilioAccountSid] = useState("");
   const [twilioAuthToken, setTwilioAuthToken] = useState("");
@@ -100,6 +103,20 @@ export default function AdminDashboardPage() {
     if (!accessToken || !selectedBusinessId) return;
     refreshIntegrations().catch(() => void 0);
   }, [accessToken, selectedBusinessId, refreshIntegrations]);
+
+  useEffect(() => {
+    const next: Record<string, { e164: string; label: string; inboundEnabled: boolean; outboundEnabled: boolean; isPrimaryOutbound: boolean }> = {};
+    for (const pn of phoneNumbers) {
+      next[pn.id] = {
+        e164: pn.e164,
+        label: pn.label ?? "",
+        inboundEnabled: pn.inboundEnabled,
+        outboundEnabled: pn.outboundEnabled,
+        isPrimaryOutbound: pn.isPrimaryOutbound
+      };
+    }
+    setPhoneEdits(next);
+  }, [phoneNumbers]);
 
   useEffect(() => {
     const tw = providerConfigs.find((c) => c.type === "TELEPHONY_TWILIO");
@@ -181,6 +198,51 @@ export default function AdminDashboardPage() {
           voiceIdAr: elevenVoiceAr
         }
       });
+      await refreshIntegrations();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function updatePhoneEdit(id: string, patch: Partial<{ e164: string; label: string; inboundEnabled: boolean; outboundEnabled: boolean; isPrimaryOutbound: boolean }>) {
+    setPhoneEdits((prev) => {
+      const next = { ...prev };
+      next[id] = { ...(next[id] ?? { e164: "", label: "", inboundEnabled: true, outboundEnabled: true, isPrimaryOutbound: false }), ...patch };
+      return next;
+    });
+  }
+
+  async function savePhoneNumber(id: string) {
+    if (!accessToken || !selectedBusinessId) return;
+    const ed = phoneEdits[id];
+    if (!ed) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await apiAdminUpdatePhoneNumber(accessToken, selectedBusinessId, id, {
+        e164: ed.e164,
+        label: ed.label.trim().length ? ed.label.trim() : undefined,
+        inboundEnabled: ed.inboundEnabled,
+        outboundEnabled: ed.outboundEnabled,
+        isPrimaryOutbound: ed.isPrimaryOutbound
+      });
+      await refreshIntegrations();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function deletePhoneNumber(id: string) {
+    if (!accessToken || !selectedBusinessId) return;
+    if (!confirm(t("admin.confirmDeletePhoneNumber"))) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await apiAdminDeletePhoneNumber(accessToken, selectedBusinessId, id);
       await refreshIntegrations();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -369,10 +431,76 @@ export default function AdminDashboardPage() {
                 {phoneNumbers.length ? (
                   phoneNumbers.map((pn) => (
                     <div key={pn.id} className="rounded-[var(--radius)] border border-[color:var(--border)] bg-white/5 p-3">
-                      <div className="font-medium">
-                        {pn.e164} • {pn.provider}
+                      <div className="text-xs text-[color:var(--muted)]">
+                        {pn.provider} • {pn.isPrimaryOutbound ? t("admin.primaryOutbound") : t("admin.secondaryNumber")}
                       </div>
-                      <div className="mt-1 text-xs text-[color:var(--muted)]">{pn.isPrimaryOutbound ? t("admin.primaryOutbound") : t("admin.secondaryNumber")}</div>
+                      <div className="mt-2 grid grid-cols-1 gap-2">
+                        <Input
+                          placeholder={t("admin.addPhoneNumberE164")}
+                          value={phoneEdits[pn.id]?.e164 ?? pn.e164}
+                          onChange={(e) => updatePhoneEdit(pn.id, { e164: e.target.value })}
+                        />
+                        <Input
+                          placeholder={t("common.label")}
+                          value={phoneEdits[pn.id]?.label ?? pn.label ?? ""}
+                          onChange={(e) => updatePhoneEdit(pn.id, { label: e.target.value })}
+                        />
+                        <div className="flex flex-wrap gap-3 text-xs text-[color:var(--muted)]">
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={phoneEdits[pn.id]?.outboundEnabled ?? pn.outboundEnabled}
+                              onChange={(e) => updatePhoneEdit(pn.id, { outboundEnabled: e.target.checked })}
+                            />
+                            {t("admin.outboundEnabled")}
+                          </label>
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={phoneEdits[pn.id]?.inboundEnabled ?? pn.inboundEnabled}
+                              onChange={(e) => updatePhoneEdit(pn.id, { inboundEnabled: e.target.checked })}
+                            />
+                            {t("admin.inboundEnabled")}
+                          </label>
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={phoneEdits[pn.id]?.isPrimaryOutbound ?? pn.isPrimaryOutbound}
+                              onChange={(e) => {
+                                const val = e.target.checked;
+                                if (val) {
+                                  setPhoneEdits((prev) => {
+                                    const next = { ...prev };
+                                    for (const other of phoneNumbers) {
+                                      if (other.provider !== pn.provider) continue;
+                                      const row = next[other.id];
+                                      if (row) next[other.id] = { ...row, isPrimaryOutbound: other.id === pn.id };
+                                    }
+                                    if (next[pn.id]) next[pn.id] = { ...next[pn.id], isPrimaryOutbound: true };
+                                    return next;
+                                  });
+                                } else {
+                                  updatePhoneEdit(pn.id, { isPrimaryOutbound: false });
+                                }
+                              }}
+                            />
+                            {t("admin.primaryOutbound")}
+                          </label>
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <Button variant="secondary" disabled={loading || !accessToken || !selectedBusinessId} onClick={() => void savePhoneNumber(pn.id)}>
+                            {t("common.save")}
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            className="border-red-500/30 text-red-300 hover:bg-red-500/10"
+                            disabled={loading || !accessToken || !selectedBusinessId}
+                            onClick={() => void deletePhoneNumber(pn.id)}
+                          >
+                            {t("common.delete")}
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   ))
                 ) : (

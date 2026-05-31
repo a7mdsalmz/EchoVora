@@ -10,6 +10,7 @@
   },
   "common": {
     "save": "حفظ",
+    "delete": "حذف",
     "refresh": "تحديث",
     "add": "إضافة",
     "create": "إنشاء",
@@ -317,6 +318,9 @@
     "phoneNumbers": "أرقام الهاتف",
     "addPhoneNumberE164": "إضافة رقم (+E.164)",
     "addPhoneNumber": "إضافة رقم",
+    "outboundEnabled": "مفعّل للصادر",
+    "inboundEnabled": "مفعّل للوارد",
+    "confirmDeletePhoneNumber": "هل تريد حذف رقم الهاتف هذا؟",
     "noPhoneNumbers": "لا توجد أرقام بعد.",
     "primaryOutbound": "أساسي للصادر",
     "secondaryNumber": "ثانوي",

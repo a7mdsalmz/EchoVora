@@ -707,4 +707,34 @@ export async function apiAdminCreatePhoneNumber(
   return res.json() as Promise<{ phoneNumber: AdminPhoneNumber }>;
 }
 
+export async function apiAdminUpdatePhoneNumber(
+  accessToken: string,
+  businessId: string,
+  id: string,
+  payload: {
+    e164?: string;
+    label?: string;
+    inboundEnabled?: boolean;
+    outboundEnabled?: boolean;
+    isPrimaryOutbound?: boolean;
+  }
+) {
+  const res = await fetch(`${baseUrl}/api/admin/integrations/${encodeURIComponent(businessId)}/phone-numbers/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json() as Promise<{ phoneNumber: AdminPhoneNumber }>;
+}
+
+export async function apiAdminDeletePhoneNumber(accessToken: string, businessId: string, id: string) {
+  const res = await fetch(`${baseUrl}/api/admin/integrations/${encodeURIComponent(businessId)}/phone-numbers/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    headers: { authorization: `Bearer ${accessToken}` }
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json() as Promise<{ ok: boolean }>;
+}
+
 

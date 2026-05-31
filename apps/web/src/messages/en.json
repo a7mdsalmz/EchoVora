@@ -10,6 +10,7 @@
   },
   "common": {
     "save": "Save",
+    "delete": "Delete",
     "refresh": "Refresh",
     "add": "Add",
     "create": "Create",
@@ -316,6 +317,9 @@
     "phoneNumbers": "Phone numbers",
     "addPhoneNumberE164": "Add phone number (+E.164)",
     "addPhoneNumber": "Add number",
+    "outboundEnabled": "Outbound enabled",
+    "inboundEnabled": "Inbound enabled",
+    "confirmDeletePhoneNumber": "Delete this phone number?",
     "noPhoneNumbers": "No phone numbers yet.",
     "primaryOutbound": "Primary outbound",
     "secondaryNumber": "Secondary",

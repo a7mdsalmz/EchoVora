@@ -37,6 +37,8 @@ services:
       PORT: "4000"
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/echovora
       REDIS_URL: redis://redis:6379
+      PUBLIC_API_BASE_URL: ${PUBLIC_API_BASE_URL}
+      CONFIG_ENCRYPTION_KEY: ${CONFIG_ENCRYPTION_KEY}
       JWT_SECRET: ${JWT_SECRET}
       JWT_ISSUER: echovora
       JWT_AUDIENCE: echovora-web
@@ -56,8 +58,9 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/echovora
       REDIS_URL: redis://redis:6379
-      API_BASE_URL: http://api:4000
+      API_BASE_URL: ${PUBLIC_API_BASE_URL}
       TELEPHONY_ANSWER_TOKEN_SECRET: ${TELEPHONY_ANSWER_TOKEN_SECRET}
+      CONFIG_ENCRYPTION_KEY: ${CONFIG_ENCRYPTION_KEY}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY}
     depends_on:

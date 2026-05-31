@@ -25,11 +25,21 @@ const CreatePhoneNumberBody = z.object({
 });
 
 const UpdatePhoneNumberBody = z.object({
+  e164: z.string().min(5).optional(),
   label: z.string().optional(),
   inboundEnabled: z.boolean().optional(),
   outboundEnabled: z.boolean().optional(),
   isPrimaryOutbound: z.boolean().optional()
 });
+
+function normalizeE164(input: string) {
+  const raw = String(input ?? "").trim();
+  if (!raw) return raw;
+  const prefixed = raw.startsWith("00") ? `+${raw.slice(2)}` : raw;
+  const cleaned = prefixed.replace(/[^\d+]/g, "");
+  if (cleaned.startsWith("+")) return `+${cleaned.slice(1).replace(/\D/g, "")}`;
+  return `+${cleaned.replace(/\D/g, "")}`;
+}
 
 function maskConfig(input: Record<string, unknown>) {
   const out: Record<string, unknown> = { ...input };
@@ -136,6 +146,7 @@ export const adminIntegrationsRoutes: FastifyPluginAsync = async (app) => {
     if (!exists) return reply.notFound("Business not found");
 
     const created = await prisma.$transaction(async (tx) => {
+      const e164 = normalizeE164(body.e164);
       if (body.isPrimaryOutbound) {
         await tx.phoneNumber.updateMany({
           where: { businessId: p.businessId, provider: body.provider as any, deletedAt: null },
@@ -146,7 +157,7 @@ export const adminIntegrationsRoutes: FastifyPluginAsync = async (app) => {
         data: {
           businessId: p.businessId,
           provider: body.provider as any,
-          e164: body.e164,
+          e164,
           label: body.label,
           inboundEnabled: body.inboundEnabled ?? true,
           outboundEnabled: body.outboundEnabled ?? true,
@@ -166,6 +177,7 @@ export const adminIntegrationsRoutes: FastifyPluginAsync = async (app) => {
     if (!existing) return reply.notFound();
 
     const updated = await prisma.$transaction(async (tx) => {
+      const e164 = typeof body.e164 === "string" ? normalizeE164(body.e164) : undefined;
       if (body.isPrimaryOutbound === true) {
         await tx.phoneNumber.updateMany({
           where: { businessId: p.businessId, provider: existing.provider, deletedAt: null },
@@ -174,9 +186,33 @@ export const adminIntegrationsRoutes: FastifyPluginAsync = async (app) => {
       }
       return tx.phoneNumber.update({
         where: { id },
-        data: { label: body.label, inboundEnabled: body.inboundEnabled, outboundEnabled: body.outboundEnabled, isPrimaryOutbound: body.isPrimaryOutbound }
+        data: { e164, label: body.label, inboundEnabled: body.inboundEnabled, outboundEnabled: body.outboundEnabled, isPrimaryOutbound: body.isPrimaryOutbound }
       });
     });
     return { phoneNumber: updated };
+  });
+
+  app.delete("/admin/integrations/:businessId/phone-numbers/:id", { preHandler: [app.authorize(RoleKey.SUPER_ADMIN)] }, async (req, reply) => {
+    const p = BusinessParam.parse(req.params);
+    const id = String((req.params as any)?.id ?? "");
+    if (!id) return reply.badRequest("Missing id");
+    const existing = await prisma.phoneNumber.findFirst({ where: { id, businessId: p.businessId, deletedAt: null } });
+    if (!existing) return reply.notFound();
+
+    await prisma.$transaction(async (tx) => {
+      await tx.phoneNumber.delete({ where: { id } });
+
+      if (existing.isPrimaryOutbound) {
+        const next = await tx.phoneNumber.findFirst({
+          where: { businessId: p.businessId, provider: existing.provider, deletedAt: null },
+          orderBy: [{ outboundEnabled: "desc" }, { updatedAt: "desc" }]
+        });
+        if (next) {
+          await tx.phoneNumber.update({ where: { id: next.id }, data: { isPrimaryOutbound: true } });
+        }
+      }
+    });
+
+    return { ok: true };
   });
 };
